@@ -1,9 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using ParkMyRide.Models;
 
 namespace ParkMyRide.Interfaces
 {
-     [ApiController]
-    [Route("api/[controller]")]
+    [ApiController]
+    [Route("[controller]")]
     public class ParkingController : ControllerBase
     {
         private readonly IParkingService _parkingService;
@@ -14,16 +15,20 @@ namespace ParkMyRide.Interfaces
         }
 
         [HttpGet]
-        public IActionResult GetAllParkingSlots()
+        public ActionResult<List<ParkingSlot>> GetAllParkingSlots()
         {
             var parkingSlots = _parkingService.GetAllParkingSlots();
             return Ok(parkingSlots);
         }
 
         [HttpPost]
-        public IActionResult AssignParkingSlot([FromBody] string vehicleType)
+        public ActionResult<ParkingSlot> AssignParkingSlot([FromBody] string vehicleType)
         {
             var assignedSlot = _parkingService.AssignParkingSlot(vehicleType);
+            if (assignedSlot == null)
+            {
+                return NotFound("No available parking slot for the given vehicle type.");
+            }
             return Ok(assignedSlot);
         }
     }

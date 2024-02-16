@@ -19,7 +19,7 @@ namespace ParkMyRide
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddSingleton<IParkingService, ParkingService>();
+            services.AddScoped<IParkingService, ParkingService>();
             services.AddControllers();
         }
 
