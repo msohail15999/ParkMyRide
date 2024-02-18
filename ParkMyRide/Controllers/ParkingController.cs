@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using ParkMyRide.Interfaces;
 using ParkMyRide.Models;
+using System;
 
-namespace ParkMyRide.Interfaces
+namespace ParkMyRide.Controllers
 {
     [ApiController]
     [Route("[controller]")]
@@ -9,7 +11,7 @@ namespace ParkMyRide.Interfaces
     {
         private readonly IParkingService _parkingService;
 
-        public ParkingController(IParkingService parkingService)
+        public ParkingController(IParkingService parkingService)    
         {
             _parkingService = parkingService;
         }
@@ -21,15 +23,26 @@ namespace ParkMyRide.Interfaces
             return Ok(parkingSlots);
         }
 
-        [HttpPost]
-        public ActionResult<ParkingSlot> AssignParkingSlot([FromBody] string vehicleType)
+        [HttpPost("/parking/allocate")]
+        public ActionResult<ParkingSlot> AllocateParkingSlot([FromBody] string vehicleType)
         {
-            var assignedSlot = _parkingService.AssignParkingSlot(vehicleType);
+            var assignedSlot = _parkingService.AllocateParkingSlot(vehicleType);
             if (assignedSlot == null)
             {
                 return NotFound("No available parking slot for the given vehicle type.");
             }
-            return Ok(assignedSlot);
+            return Ok(assignedSlot.Value.slot);
+        }
+
+        [HttpPost("/parking/deallocate")]
+        public ActionResult<bool> DeallocateParkingSlot([FromBody] int slotNumber)
+        {
+            var deallocated = _parkingService.DeallocateParkingSlot(slotNumber);
+            if (!deallocated)
+            {
+                return NotFound("Parking slot is already vacant or not found.");
+            }
+            return Ok(slotNumber);
         }
     }
 }

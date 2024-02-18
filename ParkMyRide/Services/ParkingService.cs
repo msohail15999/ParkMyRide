@@ -1,17 +1,20 @@
-﻿using ParkMyRide.Interfaces;
+﻿using Microsoft.AspNetCore.Mvc;
+using ParkMyRide.Interfaces;
 using ParkMyRide.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace ParkMyRide.Services
 {
     public class ParkingService : IParkingService
     {
-        private List<ParkingSlot> _parkingSlots;
+        private readonly object _lock = new object();
+        private readonly List<ParkingSlot> _parkingSlots;
 
         public ParkingService()
         {
-            // Initialize parking slots
             _parkingSlots = InitializeParkingSlots();
-
         }
 
         private List<ParkingSlot> InitializeParkingSlots()
@@ -44,39 +47,57 @@ namespace ParkMyRide.Services
             return _parkingSlots;
         }
 
-        public ParkingSlot AssignParkingSlot(string vehicleType)
+        public (ParkingSlot slot, int slotNumber)? AllocateParkingSlot(string vehicleType)
         {
-            // Get available slots based on vehicle type
-            var availableSlots = _parkingSlots.Where(slot => !slot.IsOccupied && IsSlotCompatible(slot.Type, vehicleType)).ToList();
-
-            if (availableSlots.Count == 0)
+            if (string.IsNullOrWhiteSpace(vehicleType))
             {
-                return null; // No available parking slot
+                throw new ArgumentException("Vehicle type is required.", nameof(vehicleType));
             }
 
-            // Assign the first available slot
-            var assignedSlot = availableSlots.First();
-            assignedSlot.IsOccupied = true;
+            lock (_lock)
+            {
+                var availableSlot = _parkingSlots.FirstOrDefault(slot => !slot.IsOccupied && IsSlotCompatible(slot.Type, vehicleType));
 
-            return assignedSlot;
+                if (availableSlot != null)
+                {
+                    availableSlot.IsOccupied = true;
+                    return (availableSlot, availableSlot.Number);
+                }
+
+                return null;
+            }
         }
 
-
-        private bool IsSlotCompatible(string slotType, string vehicleType)
+        public bool DeallocateParkingSlot(int slotNumber)
         {
-            if (vehicleType == "Hatchback")
+            lock (_lock)
             {
-                return true; // All slots are compatible with hatchback
+                var slot = _parkingSlots.FirstOrDefault(s => s.Number == slotNumber);
+                if (slot != null && slot.IsOccupied)
+                {
+                    slot.IsOccupied = false;
+                    return true; // Deallocation successful
+                }
+
+                return false; // Parking slot was already vacant or not found
             }
-            else if (vehicleType == "Sedan/Compact SUV")
+        }
+
+        public bool IsSlotCompatible(string slotType, string vehicleType)
+        {
+            switch (vehicleType)
             {
-                return slotType != "Small"; // Sedan/Compact SUV cannot park in Small slots
+                case "Hatchback":
+                    return true;
+                case "Sedan":
+                case "CompactSUV":
+                    return slotType != "Small";
+                case "SUV":
+                case "Large":
+                    return slotType == "Large";
+                default:
+                    return false;
             }
-            else if (vehicleType == "SUV or Large")
-            {
-                return slotType == "Large"; // Only Large slots are compatible with SUV or Large vehicles
-            }
-            return false;
         }
     }
 }
